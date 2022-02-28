@@ -1,0 +1,233 @@
+#!/bin/bash
+
+# reboot sshd service
+/etc/init.d/sshd restart
+
+auto_ping(){
+# ping一次该ip, 超时设置1s(如果1s内没ping通，就停止ping)
+  if ping -c 1 -w 1 $1 > /dev/null;then
+    echo "ping $1 success"
+	return 0
+  else
+    echo "ping $1 fail"
+	return -1
+  fi
+}
+
+# auto ssh function
+auto_ssh(){
+username=$1
+password=$2
+hostname=$3
+/usr/bin/expect <<EOF
+set timeout 10
+spawn ssh-copy-id -i /root/.ssh/id_rsa.pub $username@$hostname
+expect {
+            #first connect, no public key in ~/.ssh/known_hosts
+            "*yes/no*" {
+            send "yes\r"
+            expect "*password*"
+                send "$password\r"
+            }
+            #already has public key in ~/.ssh/known_hosts
+            "*password*" {
+                send "$password\r"
+            }
+            "Now try logging into the machine" {
+                #it has authorized, do nothing!
+            }
+        }
+expect eof
+EOF
+}
+
+ROOT_PWD=123456
+# auto_ssh root 123456 master
+# ${HADOOP_SERVERS_HOSTNAME}和${ROOT_PWD} 从docker-compose.yml获取
+for hostname in ${HADOOP_SERVERS_HOSTNAME} ; do
+  retry=30
+  sleep_secs=10
+  while [ ${retry} -gt 0 ] ; do
+    auto_ping $hostname
+	res=$?
+    if [ $res -eq 0 ] ; then
+      echo "enter sending id_rsa loop,now hostname is $hostname"
+      auto_ssh root ${ROOT_PWD} $hostname
+      break
+	else
+	  sleep $sleep_secs
+	  continue
+	fi
+  done
+done
+
+
+
+if [ -n "${HADOOP_DATANODE_UI_PORT}" ]; then
+  echo "Replacing default datanode UI port 9864 with ${HADOOP_DATANODE_UI_PORT}"
+  # 注意</configuration>必须是最后一行，否则最在</configuration>后边插入内容
+  if [ -z "`grep "dfs.datanode.http.address" ${HADOOP_CONF_DIR}/hdfs-site.xml`" ]; then
+    p="<property><name>dfs.datanode.http.address</name><value>0.0.0.0:${HADOOP_DATANODE_UI_PORT}</value></property>"
+    sed -i "$ i\  $p  " ${HADOOP_CONF_DIR}/hdfs-site.xml
+  fi
+fi
+
+if [ "${HADOOP_NODE}" == "namenode" ]; then
+  echo "Starting Hadoop name node..."
+  yes | hdfs namenode -format
+  hdfs --daemon start namenode
+  hdfs --daemon start secondarynamenode
+  yarn --daemon start resourcemanager
+  mapred --daemon start historyserver
+fi
+if [ "${HADOOP_NODE}" == "datanode" ]; then
+  echo "Starting Hadoop data node..."
+  hdfs --daemon start datanode
+  yarn --daemon start nodemanager
+fi
+
+if [ -n "${HIVE_CONFIGURE}" ]; then
+  echo "Configuring Hive..."
+  schematool -dbType postgres -initSchema
+
+  # Start metastore service.
+  hive --service metastore &
+
+  # JDBC Server.
+  hiveserver2 &
+fi
+
+if [ -z "${SPARK_MASTER_ADDRESS}" ]; then
+  echo "Starting Spark master node..."
+  # Create directory for Spark logs
+  SPARK_LOGS_HDFS_PATH=/log/spark
+  if ! hadoop fs -test -d "${SPARK_LOGS_HDFS_PATH}"
+  then
+    hadoop fs -mkdir -p  ${SPARK_LOGS_HDFS_PATH}
+    hadoop fs -chmod -R 755 ${SPARK_LOGS_HDFS_PATH}/*
+  fi
+
+  # Spark on YARN
+  SPARK_JARS_HDFS_PATH=/spark-jars
+  if ! hadoop fs -test -d "${SPARK_JARS_HDFS_PATH}"
+  then
+    hadoop dfs -copyFromLocal "${SPARK_HOME}/jars" "${SPARK_JARS_HDFS_PATH}"
+  fi
+
+  "${SPARK_HOME}/sbin/start-master.sh" -h master &
+  "${SPARK_HOME}/sbin/start-history-server.sh" &
+else
+  echo "Starting Spark slave node..."
+  "${SPARK_HOME}/sbin/start-slave.sh" "${SPARK_MASTER_ADDRESS}" &
+fi
+
+
+
+# test hadoop zookeeper alive function 
+wait_until() {
+    local hostname=${1?}
+    local port=${2?}
+    local retry=${3:-100}
+    local sleep_secs=${4:-2}
+    local address_up=0
+    while [ ${retry} -gt 0 ] ; do
+        echo  "Waiting until ${hostname}:${port} is up ... with remaining retry times: ${retry}"
+        if nc -z ${hostname} ${port}; then
+            address_up=1
+            break
+        fi
+        retry=$((retry-1))
+        sleep ${sleep_secs}
+    done
+    if [ $address_up -eq 0 ]; then
+        echo "GIVE UP waiting until ${hostname}:${port} is up! "
+        return 0
+    else
+     return 1
+	fi
+}
+
+echo '' > "${HBASE_CONF_DIR}/regionservers"
+for hostname in ${HBASE_REGIONSERVER_HOSTNAME};do
+  echo "$hostname"  >> "${HBASE_CONF_DIR}/regionservers"
+done
+
+#zoo_alive=0
+#for zoo_hostname in ${ZOO_SERVERS_HOSTNAME};do
+#  echo "try nc $zoo_hostname"
+#  wait_until ${zoo_hostname} 2181 20 15
+#  res=$?
+#  zoo_alive=$((zoo_alive+res))
+#  if [ $zoo_alive -gt 0 ] ;then
+#    echo "zookeeper  port has been connected!"
+#    break
+#  fi
+#done
+
+#if [ $zoo_alive -gt 0 ] ; then
+#  echo "zookeeper is alive ready to start hbase"
+#  # HBase master startup
+#  if [ "${HBASE_NODE}" == "hmaster" ]; then
+#      wait_until ${HADOOP_NNAMENADE_HOSTNAME} 9000 
+#      echo "`date` Starting hmaster main on `hostname`" 
+#      echo "`ulimit -a`" 2>&1
+#      set +e -x
+#      hdfs dfs -ls /tmp > /dev/null 2>&1
+#      if [ $? -ne 0 ]; then
+#          hdfs dfs -mkdir -p /tmp
+#          hdfs dfs -chmod 1777 /tmp
+#      fi
+#      hdfs dfs -ls /user > /dev/null 2>&1
+#      if [ $? -ne 0 ]; then
+#          hdfs dfs -mkdir -p /user/hdfs
+#          hdfs dfs -chmod 755 /user
+#      fi
+#      hdfs dfs -ls /hbase > /dev/null 2>&1
+#      if [ $? -ne 0 ]; then
+#          hdfs dfs -mkdir -p /hbase
+#          hdfs dfs -chown hbase:hbase /hbase
+#      fi
+#      set -e +x
+#      exec hbase master start
+#  fi
+#  # HBase regionserver startup
+#  if [ "${HBASE_NODE}" == "regionserver" ]; then
+#      wait_until ${HBASE_MASTER_HOSTNAME} 16000 
+#      echo "`date` Starting regionserver on `hostname`" 
+#      echo "`ulimit -a`" 2>&1
+#      exec hbase regionserver start
+#  fi
+#  if [ "${HBASE_NODE_EXTRA}" == "hmaster-backup" ]; then
+#	  # 对于regionserver 只取最左边第一个hostname
+#      wait_until ${HBASE_REGIONSERVER_HOSTNAME%% *} 16020  
+#      echo "`date` Starting hmaster backup on `hostname`" 
+#      echo "`ulimit -a`" 2>&1 
+#      exec hbase master --backup start
+#  fi
+#  if [ "${HBASE_NODE_EXTRA}" == "thrift" ]; then
+#      wait_until ${HBASE_REGIONSERVER_HOSTNAME%% *} 16020
+#      echo "`date` Starting thirft on `hostname`" 
+#      echo "`ulimit -a`" 2>&1
+#      exec hbase thrift start
+#  fi
+#else
+#  echo "zookeeper is not alive, start hbase cluster fail"
+#fi
+
+echo "All initializations finished!"
+
+# Blocking call to view all logs. This is what won't let container exit right away.
+/scripts/parallel_commands.sh "scripts/watchdir ${HADOOP_LOG_DIR}" "scripts/watchdir ${SPARK_LOG_DIR}"
+
+# Stop all
+if [ "${HADOOP_NODE}" == "namenode" ]; then
+  hdfs namenode -format
+  hdfs --daemon stop namenode
+  hdfs --daemon stop secondarynamenode
+  yarn --daemon stop resourcemanager
+  mapred --daemon stop historyserver
+fi
+if [ "${HADOOP_NODE}" == "datanode" ]; then
+  hdfs --daemon stop datanode
+  yarn --daemon stop nodemanager
+fi
