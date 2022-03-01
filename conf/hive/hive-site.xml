@@ -60,4 +60,14 @@
             Hive operations as the user making the calls to it.
         </description>
     </property>
+	
+	<!-- To solve NucleusException: Attempt to invoke the "HikariCP" plugin -->
+	<property>
+    <name>datanucleus.connectionPoolingType</name>
+    <value>dbcp</value>
+    <description>
+      Expects one of [bonecp, dbcp, hikaricp, none].
+      Specify connection pool library for datanucleus
+    </description>
+  </property>
 </configuration>

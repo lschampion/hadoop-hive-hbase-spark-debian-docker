@@ -255,7 +255,7 @@ fi
 echo "All initializations finished!"
 
 # Blocking call to view all logs. This is what won't let container exit right away.
-/scripts/parallel_commands.sh "scripts/watchdir ${HADOOP_LOG_DIR}" "scripts/watchdir ${SPARK_LOG_DIR}"
+/scripts/parallel_commands.sh "scripts/watchdir ${HADOOP_LOG_DIR}" "scripts/watchdir ${SPARK_LOG_DIR}" "scripts/watchdir ${HBASE_LOG_DIR}"
 
 
 
