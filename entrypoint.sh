@@ -3,6 +3,15 @@
 # reboot sshd service
 /etc/init.d/sshd restart
 
+# https://blog.csdn.net/jmx_bigdata/article/details/98506875
+# Sqoop报错：ERROR Could not register mbeans java.security.AccessControlException: access denied
+sed -i '/};/i permission javax.management.MBeanTrustPermission "register";' ${JAVA_HOME}/jre/lib/security/java.policy
+
+# Sqoop报警告hcatalog does not exist!...accumulo does not exist!解决方案
+sed -i 's/Warning: $HCAT_HOME does not exist! HCatalog jobs will fail./$HCAT_HOME does not exist!/g' ${SQOOP_HOME}/bin/configure-sqoop
+sed -i 's/Warning: $ACCUMULO_HOME does not exist! Accumulo imports will fail./$ACCUMULO_HOME does not exist!/g' ${SQOOP_HOME}/bin/configure-sqoop
+
+
 # ping服务
 auto_ping(){
 # ping一次该ip, 超时设置1s(如果1s内没ping通，就停止ping)

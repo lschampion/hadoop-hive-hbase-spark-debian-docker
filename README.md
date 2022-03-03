@@ -8,6 +8,7 @@ Base Docker image with just essentials: Hadoop, Hive ,HBase and Spark.
 * [Hive 3.1.2](http://hive.apache.org/) with HiveServer2 exposed to host.
 * [Spark 2.4.5](https://spark.apache.org/docs/2.4.5/) in YARN mode (Spark Scala, PySpark and SparkR)
 * [Hbase 2.3.6](https://hbase.apache.org/)  in Fully Distributed (Multi-node) Mode
+* [Sqoop 1.4.7 ](https://sqoop.apache.org/)
 
 ## Usage
 
@@ -80,3 +81,4 @@ backend for SparkSQL. Alternatively you can try to downgrade Hive :)
 ## TODO
 * Upgrade spark to 3.0
 * When upgraded, enable Spark-Hive integration.
+
