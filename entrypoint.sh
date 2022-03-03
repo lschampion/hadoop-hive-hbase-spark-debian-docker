@@ -179,7 +179,7 @@ done
 zoo_alive=0
 for zoo_hostname in ${ZOO_SERVERS_HOSTNAME};do
   echo "try nc $zoo_hostname"
-  wait_until ${zoo_hostname} 2181 50 15
+  wait_until ${zoo_hostname} 2181 100 15
   res=$?
   zoo_alive=$((zoo_alive+res))
   if [ $zoo_alive -gt 0 ] ;then
