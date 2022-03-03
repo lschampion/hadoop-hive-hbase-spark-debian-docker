@@ -29,4 +29,13 @@
         <name>hadoop.proxyuser.root.hosts</name>
         <value>*</value>
     </property>
+    <property>
+        <name>hadoop.proxyuser.livy.groups</name>
+        <value>*</value>
+    </property>
+    <property>
+        <name>hadoop.proxyuser.livy.hosts</name>
+        <value>*</value>
+    </property>
+
 </configuration>
