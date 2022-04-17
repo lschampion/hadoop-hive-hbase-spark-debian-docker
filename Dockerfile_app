@@ -1,7 +1,7 @@
 # Alpine 3.11 contains Python 3.8, pyspark only supports Python up to 3.7
 
 
-FROM lisacumt/bigdata_base_env_img:1.1.2 as base_package
+FROM lisacumt/bigdata_base_env_img:1.1.3 as base_package
 ################################-- Start Packaging --######################################
 FROM base_package as application_package
 
@@ -84,7 +84,7 @@ RUN if [ ! -f "${SQOOP_PACKAGE}" ]; then curl --progress-bar -L --retry 3 \
   && chown -R root:root "${SQOOP_HOME}" \
   && mkdir -p "${SQOOP_HOME}/logs"
 
-  
+
 # Tez Package
 # 国内加速地址，没有找到
 # 如果本地{USR_PROGRAM_DIR}/source_dir文件夹没有，则下载。
@@ -96,9 +96,26 @@ RUN if [ ! -f "${TEZ_PACKAGE}" ]; then curl --progress-bar -L --retry 3 \
   && mkdir -p "${TEZ_HOME}/logs" \
   && cp "${USR_PROGRAM_DIR}/source_dir/${TEZ_PACKAGE}" "${USR_PROGRAM_DIR}/"
 
+# Flink Package
+# 国内加速地址，注意版本不全
+# http://mirrors.aliyun.com/apache/flink/flink-${FLINK_VERSION}/flink-${FLINK_VERSION}-bin-scala_${FLINK_SCALA_VERSION}.tgz
+# 如果本地{USR_PROGRAM_DIR}/source_dir文件夹没有，则下载。
+RUN if [ ! -f "${FLINK_PACKAGE}" ] ; then curl --progress-bar -L --retry 3 \
+  "https://dlcdn.apache.org/flink/flink-${FLINK_VERSION}/flink-${FLINK_VERSION}-bin-scala_${FLINK_SCALA_VERSION}.tgz" -o "${USR_PROGRAM_DIR}/source_dir/${FLINK_PACKAGE}" ; fi \
+  && tar -xf "${USR_PROGRAM_DIR}/source_dir/${FLINK_PACKAGE}" -C "${USR_PROGRAM_DIR}/" \
+  && mv "${USR_PROGRAM_DIR}/flink-${FLINK_VERSION}" "${FLINK_HOME}" \
+  && mkdir -p "${FLINK_LOG_DIR}" \
+  && chown -R root:root "${FLINK_HOME}"
 
+# Flink 整合Hadoop
+# https://flink.apache.org/downloads.html --> Additional Components --> Pre-bundled Hadoop 2.8.3
+ENV FLINK_PRE_BUNDLED_HADOOP_JAR=flink-shaded-hadoop-2-uber-2.8.3-10.0.jar
+RUN if [ ! -f "${FLINK_PRE_BUNDLED_HADOOP_JAR}" ] ; then curl --progress-bar -L --retry 3 \
+  "https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-10.0/${FLINK_PRE_BUNDLED_HADOOP_JAR}" -o "${FLINK_HOME}/lib/" ; \
+  else mv "${USR_PROGRAM_DIR}/source_dir/${FLINK_PRE_BUNDLED_HADOOP_JAR}" "${FLINK_HOME}/lib/"; fi
 
   
+
 # Zookeeper Package
 # ZooKeeper此处只借用zk的Client，并不安装zk服务
 # 国内加速地址，注意版本不全
@@ -159,7 +176,6 @@ COPY jdbc_drivers/* "${HIVE_HOME}/lib/"
 RUN for jar in `ls $TEZ_HOME | grep jar`; do export HADOOP_CLASSPATH=$HADOOP_CLASSPATH:$TEZ_HOME/$jar; done 
 RUN for jar in `ls $TEZ_HOME/lib`; do export HADOOP_CLASSPATH=$HADOOP_CLASSPATH:$TEZ_HOME/lib/$jar; done
 
-
 # Spark setup
 COPY conf/hadoop/core-site.xml "${SPARK_CONF_DIR}"/
 COPY conf/hadoop/hdfs-site.xml "${SPARK_CONF_DIR}"/
@@ -169,14 +185,16 @@ COPY conf/spark/spark-defaults.conf "${SPARK_CONF_DIR}"/
 COPY jdbc_drivers/* "${SPARK_HOME}/jars/"
 
 # HBase setup
-# RUN echo "${HBASE_CONF_DIR}"
-# RUN test -d "${HBASE_CONF_DIR}" 
-# RUN echo "HBASE_CONF_DIR exist: $?"
 COPY conf/hbase/hbase-env.sh "${HBASE_CONF_DIR}"/
 COPY conf/hbase/hbase-site.xml "${HBASE_CONF_DIR}"/
 COPY conf/hadoop/core-site.xml "${HBASE_CONF_DIR}"/
 COPY conf/hadoop/hdfs-site.xml "${HBASE_CONF_DIR}"/
 RUN echo "export JAVA_HOME=${JAVA_HOME}" >>  "${HBASE_CONF_DIR}/hbase-env.sh"
+
+# HBase setup
+COPY conf/flink/flink-conf.yaml "${FLINK_CONF_DIR}"/
+COPY conf/flink/masters "${FLINK_CONF_DIR}"/
+COPY conf/flink/workers "${FLINK_CONF_DIR}"/
 
 # Sqoop setup
 COPY jdbc_drivers/* "${SQOOP_HOME}/lib"/
@@ -184,14 +202,6 @@ COPY conf/sqoop/* "${SQOOP_CONF_DIR}"/
 COPY conf/hive/hive-site.xml "${SQOOP_CONF_DIR}"/
 RUN cp "${HIVE_HOME}/lib/hive-exec-${HIVE_VERSION}.jar" "${SQOOP_HOME}/lib"/
 
-
-# Spark with Hive
-# TODO enable in Spark 3.0
-#ENV SPARK_DIST_CLASSPATH=$SPARK_DIST_CLASSPATH:$HIVE_HOME/lib/*
-#COPY conf/hive/hive-site.xml $SPARK_CONF_DIR/
-#RUN ln -s $SPARK_HOME/jars/scala-library-*.jar $HIVE_HOME/lib \
-#    && ln -s $SPARK_HOME/jars/spark-core_*.jar $HIVE_HOME/lib \
-#    && ln -s $SPARK_HOME/jars/spark-network-common_*.jar $HIVE_HOME/lib
 
 # If both YARN Web UI and Spark UI is up, then returns 0, 1 otherwise.
 
