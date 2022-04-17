@@ -95,7 +95,7 @@ if [ "${HADOOP_NODE}" == "namenode" ]; then
   CONTAINER_ALREADY_STARTED="CONTAINER_ALREADY_STARTED_PLACEHOLDER"
   if [ ! -e $CONTAINER_ALREADY_STARTED ]; then
       touch $CONTAINER_ALREADY_STARTED
-      echo "-- First container startup --"
+      echo "-- First container startup : format namenade--"
   	  hdfs namenode -format
   else
       echo "-- Not first container startup --"
@@ -144,6 +144,22 @@ else
 fi
 
 
+TEZ_JARS_HDFS_PATH=/tez
+if ! hadoop fs -test -f "${TEZ_JARS_HDFS_PATH}/tez.tar.gz"; then
+  # 首次执行创建tez目录推送tez jar包
+  hadoop dfs -mkdir -p "${TEZ_JARS_HDFS_PATH}"
+  hadoop dfs -put "${TEZ_HOME}/share/tez.tar.gz" "${TEZ_JARS_HDFS_PATH}"
+fi
+
+
+# Tez jar export for hive
+for jar in `ls $TEZ_HOME |grep jar`; do
+    export HADOOP_CLASSPATH=$HADOOP_CLASSPATH:$TEZ_HOME/$jar
+done
+for jar in `ls $TEZ_HOME/lib`; do
+    export HADOOP_CLASSPATH=$HADOOP_CLASSPATH:$TEZ_HOME/lib/$jar
+done
+
 # test hadoop zookeeper alive function，通过测试端口是否可用，确认服务状态 
 wait_until() {
     local hostname=${1?}
@@ -178,15 +194,23 @@ done
 # zoo_alive大于零，则认为zk已经启动成功，toTo: 通过zkServer.sh status可以确认zk集群实际状态
 zoo_alive=0
 for zoo_hostname in ${ZOO_SERVERS_HOSTNAME};do
-  echo "try nc $zoo_hostname"
-  wait_until ${zoo_hostname} 2181 100 15
+  echo "hbase try nc $zoo_hostname"
+  # 等待zookeep启动
+  wait_until ${zoo_hostname} 2181 1000000 15
   res=$?
   zoo_alive=$((zoo_alive+res))
   if [ $zoo_alive -gt 0 ] ;then
-    echo "zookeeper  port has been connected!"
+    echo "zookeeper port has been connected!"
     break
   fi
 done
+
+# 判断hadoop是否启动完成
+hadoop_alive=0
+wait_until master 9000 1000000 15
+res=$?
+if (( $res==1 )) ; then hadoop_alive=1; fi
+
 
 # HBase 集群启动方式（一）
 # SSH已经配置好，以下脚本可以使用。
@@ -212,7 +236,7 @@ done
 
 
 # HBase 集群启动方式（二）
-if [ $zoo_alive -gt 0 ] ; then
+if [ $zoo_alive -gt 0 && $hadoop_alive -gt 0 ] ; then
   echo "zookeeper is alive ready to start hbase"
   for role in ${HBASE_ROLE}; do
     # HBase master startup
@@ -260,6 +284,7 @@ if [ $zoo_alive -gt 0 ] ; then
 else
   echo "zookeeper is not alive, start hbase cluster fail"
 fi
+
 
 echo "All initializations finished!"
 

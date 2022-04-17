@@ -76,22 +76,30 @@
         <name>yarn.nodemanager.vmem-check-enabled</name>
         <value>false</value>
     </property>
-
+    <property>
+        <name>yarn.nodemanager.pmem-check-enabled</name>
+        <value>false</value>
+    </property>
     <property>
         <description>To enable RM web ui2 application.</description>
         <name>yarn.webapp.ui2.enable</name>
         <value>true</value>
     </property>
-    <!-- 日志聚集功能使能 -->
+	<property>
+        <name>yarn.nodemanager.pmem-check-enabled</name>
+        <value>false</value>
+    </property>
+
+    <!--  -->
     <property>
         <name>yarn.log-aggregation-enable</name>
         <value>true</value>
     </property>
-    
-    <!-- 日志保留时间设置7天 -->
+    <!--  -->
     <property>
         <name>yarn.log-aggregation.retain-seconds</name>
         <value>604800</value>
     </property>
+
 
 </configuration>

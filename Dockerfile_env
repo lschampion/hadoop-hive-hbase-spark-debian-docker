@@ -20,7 +20,7 @@ ENV PYTHONIOENCODING UTF-8
 ENV PIP_DISABLE_PIP_VERSION_CHECK 1
 
 # Hadoop
-ENV HADOOP_VERSION=3.2.0
+ENV HADOOP_VERSION=3.2.3
 ENV HADOOP_HOME /usr/program/hadoop
 ENV HADOOP_NNAMENADE_HOSTNAME=master
 ENV HADOOP_PACKAGE="hadoop-${HADOOP_VERSION}.tar.gz"
@@ -36,14 +36,16 @@ ENV HADOOP_CONF_DIR="${HADOOP_HOME}/etc/hadoop"
 ENV HADOOP_LOG_DIR="${HADOOP_HOME}/logs"
 # For S3 to work. Without this line you'll get "Class org.apache.hadoop.fs.s3a.S3AFileSystem not found" exception when accessing S3 from Hadoop
 ENV HADOOP_CLASSPATH="${HADOOP_HOME}/share/hadoop/tools/lib/*"
+
 # Hive
 ENV HIVE_VERSION=3.1.2
 ENV HIVE_HOME=/usr/program/hive
 ENV HIVE_CONF_DIR="${HIVE_HOME}/conf"
 ENV HIVE_LOG_DIR="${HIVE_HOME}/logs"
-ENV HIVE_PACKAGE="apache-hive-${HIVE_VERSION}-bin.tar"
+ENV HIVE_PACKAGE="apache-hive-${HIVE_VERSION}-bin.tar.gz"
 ENV PATH="${PATH}:${HIVE_HOME}/bin"
 ENV HADOOP_CLASSPATH="${HADOOP_CLASSPATH}:${HIVE_HOME}/lib/*"
+
 # HBase
 ENV HBASE_VERSION=2.3.6
 ENV HBASE_HOME=/usr/program/hbase
@@ -51,14 +53,25 @@ ENV HBASE_CONF_DIR="${HBASE_HOME}/conf/"
 ENV HBASE_PACKAGE="hbase-${HBASE_VERSION}-bin.tar.gz"
 ENV PATH="${PATH}:${HBASE_HOME}/bin"
 ENV HBASE_LOG_DIR="${HBASE_HOME}/logs"
+
 # Spark
-ENV SPARK_VERSION=2.4.5
+ENV SPARK_VERSION=3.0.0
+ENV SPARK_HADOOP_VERSION=3.2
 ENV SPARK_HOME=/usr/program/spark
-ENV SPARK_PACKAGE="spark-${SPARK_VERSION}-bin-without-hadoop.tgz"
+ENV SPARK_PACKAGE="spark-${SPARK_VERSION}-bin-hadoop${SPARK_HADOOP_VERSION}.tgz"
 ENV PATH="${PATH}:${SPARK_HOME}/bin"
 ENV SPARK_CONF_DIR="${SPARK_HOME}/conf"
 ENV SPARK_LOG_DIR="${SPARK_HOME}/logs"
 ENV SPARK_DIST_CLASSPATH="${HADOOP_CONF_DIR}:${HADOOP_HOME}/share/hadoop/tools/lib/*:${HADOOP_HOME}/share/hadoop/common/lib/*:${HADOOP_HOME}/share/hadoop/common/*:${HADOOP_HOME}/share/hadoop/hdfs:${HADOOP_HOME}/share/hadoop/hdfs/lib/*:${HADOOP_HOME}/share/hadoop/hdfs/*:${HADOOP_HOME}/share/hadoop/mapreduce/lib/*:${HADOOP_HOME}/share/hadoop/mapreduce/*:${HADOOP_HOME}/share/hadoop/yarn:${HADOOP_HOME}/share/hadoop/yarn/lib/*:${HADOOP_HOME}/share/hadoop/yarn/*"
+
+# FLINK
+ENV FLINK_VERSION=1.13.6
+ENV FLINK_SCALA_VERSION=2.12
+ENV FLINK_HOME=/usr/program/flink
+ENV FLINK_PACKAGE="flink-${FLINK_VERSION}-bin-scala_${FLINK_SCALA_VERSION}.tgz"
+ENV PATH="${PATH}:${FLINK_HOME}/bin"
+ENV FLINK_CONF_DIR="${FLINK_HOME}/conf"
+ENV FLINK_LOG_DIR="${FLINK_HOME}/logs"
 
 # Sqoop
 ENV SQOOP_VERSION=1.4.7
@@ -70,12 +83,20 @@ ENV HADOOP_COMMON_HOME="${HADOOP_HOME}"
 ENV HADOOP_MAPRED_HOME="${HADOOP_HOME}"
 ENV SQOOP_CONF_DIR="${SQOOP_HOME}/conf"
 ENV SQOOP_LOG_DIR="${SQOOP_HOME}/logs"
+
 # Zookeeper
 ENV ZK_VERSION=3.6.3
 ENV ZK_HOME=/usr/program/zookeeper
 ENV ZK_CONF_DIR=${ZK_HOME}/conf
 ENV ZK_PACKAGE="apache-zookeeper-${ZK_VERSION}-bin.tar.gz"
 
+# Tez
+ENV TEZ_VERSION=0.9.2
+ENV TEZ_HOME=/usr/program/tez
+ENV TEZ_PACKAGE="apache-tez-${TEZ_VERSION}-bin.tar.gz"
+ENV TEZ_CONF_DIR=${HADOOP_CONF_DIR}
+ENV TEZ_JARS=${TEZ_HOME}/*:${TEZ_HOME}/lib/*
+ENV HADOOP_CLASSPATH=${TEZ_CONF_DIR}:${TEZ_JARS}:${HADOOP_CLASSPATH}
 
 RUN apk add --no-cache \
     'curl=~7.66' \
@@ -135,13 +156,11 @@ RUN apk add  --no-cache \
 #    && R -e 'install.packages("knitr", repos = "http://mirrors.tuna.tsinghua.edu.cn/CRAN")' 
 #    # && R -e 'install.packages("rmarkdown", repos = "http://cran.us.r-project.org")' 
 
-
 # Multi tail for logging 多重日志合并服务
 COPY scripts/ /scripts
 RUN apk add  'linux-headers=~4.19' \
    && gcc /scripts/watchdir.c -o /scripts/watchdir \
    && chmod +x /scripts/*
-
 
 ################################-- end Packaging --######################################
 

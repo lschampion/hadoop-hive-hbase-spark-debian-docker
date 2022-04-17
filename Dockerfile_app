@@ -1,7 +1,7 @@
 # Alpine 3.11 contains Python 3.8, pyspark only supports Python up to 3.7
 
 
-FROM lisacumt/bigdata_base_env_img:1.1.1 as base_package
+FROM lisacumt/bigdata_base_env_img:1.1.2 as base_package
 ################################-- Start Packaging --######################################
 FROM base_package as application_package
 
@@ -18,18 +18,21 @@ WORKDIR "${USR_PROGRAM_DIR}/source_dir"
 # 如果本地${USR_PROGRAM_DIR}/source_dir文件夹没有，则下载。
 RUN if [ ! -f ${HADOOP_PACKAGE} ] ; then curl --progress-bar -L --retry 3 \
   "http://archive.apache.org/dist/hadoop/common/hadoop-${HADOOP_VERSION}/${HADOOP_PACKAGE}" -o "${USR_PROGRAM_DIR}/source_dir/${HADOOP_PACKAGE}" ; fi \
-  && tar -xf "${USR_PROGRAM_DIR}/source_dir/${HADOOP_PACKAGE}" -C "${USR_PROGRAM_DIR}" \
+  && tar -xf "${USR_PROGRAM_DIR}/source_dir/${HADOOP_PACKAGE}" -C "${USR_PROGRAM_DIR}/" \
   && mv "${USR_PROGRAM_DIR}/hadoop-${HADOOP_VERSION}" "${HADOOP_HOME}" \
   && rm -rf "${HADOOP_HOME}/share/doc" \
   && chown -R root:root "${HADOOP_HOME}"
 
+  
+  
+RUN tar -xf "${USR_PROGRAM_DIR}/source_dir/${HIVE_PACKAGE}" -C "${USR_PROGRAM_DIR}/"
 # Hive Package
 # 国内加速地址，注意版本不全
 # http://mirrors.aliyun.com/apache/hive/hive-${HIVE_VERSION}/apache-hive-${HIVE_VERSION}-bin.tar.gz
 # 如果本地{USR_PROGRAM_DIR}/source_dir文件夹没有，则下载。
 RUN if [ ! -f "${HIVE_PACKAGE}" ]; then curl --progress-bar -L \
    "https://archive.apache.org/dist/hive/hive-${HIVE_VERSION}/${HIVE_PACKAGE}" -o "${USR_PROGRAM_DIR}/source_dir/${HIVE_PACKAGE}" ; fi \ 
-   && tar -xf "${USR_PROGRAM_DIR}/source_dir/${HIVE_PACKAGE}" -C "${USR_PROGRAM_DIR}" \
+   && tar -xf "${USR_PROGRAM_DIR}/source_dir/${HIVE_PACKAGE}" -C "${USR_PROGRAM_DIR}/" \
    && mv "${USR_PROGRAM_DIR}/apache-hive-${HIVE_VERSION}-bin" "${HIVE_HOME}" \
    && chown -R root:root "${HIVE_HOME}" \
    && mkdir -p "${HIVE_HOME}/hcatalog/var/log" \
@@ -46,7 +49,7 @@ RUN if [ ! -f "${HIVE_PACKAGE}" ]; then curl --progress-bar -L \
 # 如果本地{USR_PROGRAM_DIR}/source_dir文件夹没有，则下载。
 RUN if [ ! -f "${HBASE_PACKAGE}" ]; then curl --progress-bar -L \
   "http://archive.apache.org/dist/hbase/${HBASE_VERSION}/${HBASE_PACKAGE}" -o "${USR_PROGRAM_DIR}/source_dir/${HBASE_PACKAGE}" ; fi \
-  && tar -xf "${USR_PROGRAM_DIR}/source_dir/${HBASE_PACKAGE}" -C "${USR_PROGRAM_DIR}" \
+  && tar -xf "${USR_PROGRAM_DIR}/source_dir/${HBASE_PACKAGE}" -C "${USR_PROGRAM_DIR}/" \
   && mv "${USR_PROGRAM_DIR}/hbase-${HBASE_VERSION}" "${HBASE_HOME}" \
   && chown -R root:root "${HBASE_HOME}"
 
@@ -56,49 +59,64 @@ RUN if [ ! -f "${HBASE_PACKAGE}" ]; then curl --progress-bar -L \
 # 如果本地{USR_PROGRAM_DIR}/source_dir文件夹没有，则下载。
 RUN if [ ! -f "${SPARK_PACKAGE}" ] ; then curl --progress-bar -L --retry 3 \
   "https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/${SPARK_PACKAGE}" -o "${USR_PROGRAM_DIR}/source_dir/${SPARK_PACKAGE}" ; fi \
-  && tar -xf "${USR_PROGRAM_DIR}/source_dir/${SPARK_PACKAGE}" -C "${USR_PROGRAM_DIR}" \
-  && mv "${USR_PROGRAM_DIR}/spark-${SPARK_VERSION}-bin-without-hadoop" "${SPARK_HOME}" \
+  && tar -xf "${USR_PROGRAM_DIR}/source_dir/${SPARK_PACKAGE}" -C "${USR_PROGRAM_DIR}/" \
+  && mv "${USR_PROGRAM_DIR}/spark-${SPARK_VERSION}-bin-hadoop${SPARK_HADOOP_VERSION}" "${SPARK_HOME}" \
   && chown -R root:root "${SPARK_HOME}"
 
 # For inscrutable reasons, Spark distribution doesn't include spark-hive.jar
 # Livy attempts to load it though, and will throw :java.lang.ClassNotFoundException: org.apache.spark.sql.hive.HiveContext
 # 下载spark-hive jar包并复制到spark/jar目录下
 # 如果本地{USR_PROGRAM_DIR}/source_dir文件夹没有，则下载。
-ARG SCALA_VERSION=2.11
+ARG SCALA_VERSION=2.12
 ARG SPARK_HIVE_PACKAGE="spark-hive_${SCALA_VERSION}-${SPARK_VERSION}.jar"
-RUN if [ ! -f "${SPARK_HIVE_PACKAGE}" ]; then curl --progress-bar -L \
-    "https://repo1.maven.org/maven2/org/apache/spark/spark-hive_${SCALA_VERSION}/${SPARK_VERSION}/${SPARK_HIVE_PACKAGE}" \
-    -o "${SPARK_HOME}/jars/${SPARK_HIVE_PACKAGE}" ; \
-    else cp "${USR_PROGRAM_DIR}/source_dir/${SPARK_HIVE_PACKAGE}" "${SPARK_HOME}/jars/" ; fi
-
+#RUN if [ ! -f "${SPARK_HOME}/jars/${SPARK_HIVE_PACKAGE}" ]; then curl --progress-bar -L \
+#    "https://repo1.maven.org/maven2/org/apache/spark/spark-hive_${SCALA_VERSION}/${SPARK_VERSION}/${SPARK_HIVE_PACKAGE}" \
+#    -o "${SPARK_HOME}/jars/${SPARK_HIVE_PACKAGE}" ; \
+#    else cp "${USR_PROGRAM_DIR}/source_dir/${SPARK_HIVE_PACKAGE}" "${SPARK_HOME}/jars/" ; fi
 
 # Sqoop Package
 # 国内加速地址，没有找到
 # 如果本地{USR_PROGRAM_DIR}/source_dir文件夹没有，则下载。
 RUN if [ ! -f "${SQOOP_PACKAGE}" ]; then curl --progress-bar -L --retry 3 \
   "http://archive.apache.org/dist/sqoop/${SQOOP_VERSION}/${SQOOP_PACKAGE}" -o "${USR_PROGRAM_DIR}/source_dir/${SQOOP_PACKAGE}" ; fi \
-  && tar -xf "${USR_PROGRAM_DIR}/source_dir/${SQOOP_PACKAGE}" -C "${USR_PROGRAM_DIR}" \
+  && tar -xf "${USR_PROGRAM_DIR}/source_dir/${SQOOP_PACKAGE}" -C "${USR_PROGRAM_DIR}/" \
   && mv "${USR_PROGRAM_DIR}/sqoop-${SQOOP_VERSION}.bin__hadoop-${HADOOP_SQOOP_VERSION}" "${SQOOP_HOME}" \
   && chown -R root:root "${SQOOP_HOME}" \
   && mkdir -p "${SQOOP_HOME}/logs"
 
+  
+# Tez Package
+# 国内加速地址，没有找到
+# 如果本地{USR_PROGRAM_DIR}/source_dir文件夹没有，则下载。
+RUN if [ ! -f "${TEZ_PACKAGE}" ]; then curl --progress-bar -L --retry 3 \
+  "https://dlcdn.apache.org/tez/${TEZ_VERSION}/apache-tez-${TEZ_VERSION}-bin.tar.gz" -o "${USR_PROGRAM_DIR}/source_dir/${TEZ_PACKAGE}" ; fi \
+  && tar -xf "${USR_PROGRAM_DIR}/source_dir/${TEZ_PACKAGE}" -C "${USR_PROGRAM_DIR}/" \
+  && mv "${USR_PROGRAM_DIR}/apache-tez-${TEZ_VERSION}-bin" "${TEZ_HOME}" \
+  && chown -R root:root "${TEZ_HOME}" \
+  && mkdir -p "${TEZ_HOME}/logs" \
+  && cp "${USR_PROGRAM_DIR}/source_dir/${TEZ_PACKAGE}" "${USR_PROGRAM_DIR}/"
 
+
+
+  
 # Zookeeper Package
 # ZooKeeper此处只借用zk的Client，并不安装zk服务
 # 国内加速地址，注意版本不全
 # http://mirrors.aliyun.com/apache/zookeeper/zookeeper-${ZK_VERSION}/apache-zookeeper-${ZK_VERSION}-bin.tar.gz
 # 如果本地{USR_PROGRAM_DIR}/source_dir文件夹没有，则下载。
-RUN if [ ! -f "${ZK_PACKAGE}" ]; then curl --progress-bar -L --retry 3 \
-  "https://archive.apache.org/dist/zookeeper/zookeeper-${ZK_VERSION}/${ZK_PACKAGE}"  -o "${USR_PROGRAM_DIR}/source_dir/${ZK_PACKAGE}" ; fi \
-  && tar -xf "${USR_PROGRAM_DIR}/source_dir/${ZK_PACKAGE}" -C "${USR_PROGRAM_DIR}" \
-  && mv "${USR_PROGRAM_DIR}/apache-zookeeper-${ZK_VERSION}-bin" "${ZK_HOME}" \
-  && chown -R root:root "${ZK_HOME}"
+#RUN if [ ! -f "${ZK_PACKAGE}" ]; then curl --progress-bar -L --retry 3 \
+#  "https://archive.apache.org/dist/zookeeper/zookeeper-${ZK_VERSION}/${ZK_PACKAGE}"  -o "${USR_PROGRAM_DIR}/source_dir/${ZK_PACKAGE}" ; fi \
+#  && tar -xf "${USR_PROGRAM_DIR}/source_dir/${ZK_PACKAGE}" -C "${USR_PROGRAM_DIR}" \
+#  && mv "${USR_PROGRAM_DIR}/apache-zookeeper-${ZK_VERSION}-bin" "${ZK_HOME}" \
+#  && chown -R root:root "${ZK_HOME}"
 
 
 # Clean up 清除安装目录下的压缩包
 RUN rm -rf "${USR_PROGRAM_DIR}/source_dir/*" \
     && rm -rf "${HIVE_HOME}/examples" \
-    && rm -rf "${SPARK_HOME}/examples/src"
+    && rm -rf "${SPARK_HOME}/examples/src" \
+	&& rm /usr/program/hive/lib/guava-19.0.jar \
+    && cp  /usr/program/hadoop/share/hadoop/common/lib/guava-27.0-jre.jar /usr/program/hive/lib/
 
 ###############################################-- End Packaging --######################################################################
 FROM base_package
@@ -124,6 +142,8 @@ COPY conf/hadoop/hdfs-site.xml "${HADOOP_CONF_DIR}"/
 COPY conf/hadoop/mapred-site.xml "${HADOOP_CONF_DIR}"/
 COPY conf/hadoop/workers "${HADOOP_CONF_DIR}"/
 COPY conf/hadoop/yarn-site.xml "${HADOOP_CONF_DIR}"/
+COPY conf/tez/tez-site.xml "${HADOOP_CONF_DIR}"/
+
 # Hadoop JVM crashes on Alpine when it tries to load native libraries.
 # Solution? Delete those altogether. Alternatively, you can try and compile them
 # https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/NativeLibraries.html
@@ -132,14 +152,21 @@ RUN mkdir "${HADOOP_LOG_DIR}"  \
 
 # Hive setup
 COPY conf/hive/hive-site.xml "${HIVE_CONF_DIR}"/
+# COPY conf/tez/tez-site.xml "${HIVE_CONF_DIR}"/
 COPY conf/hive/hive-log4j2.properties "${HIVE_CONF_DIR}"/
 COPY jdbc_drivers/* "${HIVE_HOME}/lib/"
+
+RUN for jar in `ls $TEZ_HOME | grep jar`; do export HADOOP_CLASSPATH=$HADOOP_CLASSPATH:$TEZ_HOME/$jar; done 
+RUN for jar in `ls $TEZ_HOME/lib`; do export HADOOP_CLASSPATH=$HADOOP_CLASSPATH:$TEZ_HOME/lib/$jar; done
+
 
 # Spark setup
 COPY conf/hadoop/core-site.xml "${SPARK_CONF_DIR}"/
 COPY conf/hadoop/hdfs-site.xml "${SPARK_CONF_DIR}"/
+COPY conf/hadoop/yarn-site.xml "${SPARK_CONF_DIR}"/
+COPY conf/hive/hive-site.xml "${SPARK_CONF_DIR}"/
 COPY conf/spark/spark-defaults.conf "${SPARK_CONF_DIR}"/
-
+COPY jdbc_drivers/* "${SPARK_HOME}/jars/"
 
 # HBase setup
 # RUN echo "${HBASE_CONF_DIR}"
@@ -167,6 +194,7 @@ RUN cp "${HIVE_HOME}/lib/hive-exec-${HIVE_VERSION}.jar" "${SQOOP_HOME}/lib"/
 #    && ln -s $SPARK_HOME/jars/spark-network-common_*.jar $HIVE_HOME/lib
 
 # If both YARN Web UI and Spark UI is up, then returns 0, 1 otherwise.
+
 HEALTHCHECK CMD curl -f http://host.docker.internal:8080/ \
     && curl -f http://host.docker.internal:8088/ || exit 1
 

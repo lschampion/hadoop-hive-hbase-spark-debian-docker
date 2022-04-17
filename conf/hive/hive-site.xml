@@ -16,13 +16,15 @@
    limitations under the License.
 -->
 <configuration>
-
     <!--Where in HDFS we're going to store table files.-->
     <property>
         <name>hive.metastore.warehouse.dir</name>
         <value>/usr/hive/warehouse</value>
     </property>
-
+    <property>
+        <name>hive.metastore.schema.verification</name>
+        <value>false</value>
+    </property>
     <!--Postgres metastore connection details (stores info about tables etc.)-->
     <property>
         <name>javax.jdo.option.ConnectionDriverName</name>
@@ -40,17 +42,44 @@
         <name>javax.jdo.option.ConnectionPassword</name>
         <value>new_password</value>
     </property>
-
-    <!--    https://cwiki.apache.org/confluence/display/Hive/Hive+on+Spark%3A+Getting+Started -->
     <property>
         <name>hive.execution.engine</name>
-        <value>spark</value>
+        <value>tez</value>
     </property>
     <property>
-        <name>spark.yarn.jars</name>
-        <value>hdfs://master:9000/spark-jars/*</value>
+    	<name>hive.tez.container.size</name>
+        <value>1024</value>
     </property>
-
+    <!--Postgres metastore service-->
+	<property>
+        <name>hive.metastore.uris</name>
+        <value>thrift://master:9083</value>
+    </property>
+    <property>
+        <name>hive.server2.thrift.port</name>
+        <value>10000</value>
+    </property>
+    <property>
+        <name>hive.server2.thrift.http.port</name>
+        <value>10001</value>
+    </property>
+	<!-- default metastore spark -->
+	<property>
+        <name>metastore.catalog.default</name>
+        <value>hive</value>
+    </property>
+    <property>
+        <name>hive.metastore.schema.verification</name>
+        <value>false</value>
+    </property>
+    <property>
+        <name>datanucleus.autoCreateSchema</name>
+        <value>true</value>
+    </property>
+    <property>
+       <name>datanucleus.autoStartMechanism</name>
+       <value>checked</value>
+    </property>
     <!-- To be able to execute Hive queries from Zeppelin -->
     <property>
         <name>hive.server2.enable.doAs</name>
@@ -63,11 +92,28 @@
 	
 	<!-- To solve NucleusException: Attempt to invoke the "HikariCP" plugin -->
 	<property>
-    <name>datanucleus.connectionPoolingType</name>
-    <value>dbcp</value>
-    <description>
-      Expects one of [bonecp, dbcp, hikaricp, none].
-      Specify connection pool library for datanucleus
-    </description>
-  </property>
+        <name>datanucleus.connectionPoolingType</name>
+        <value>dbcp</value>
+        <description>
+          Expects one of [bonecp, dbcp, hikaricp, none].
+          Specify connection pool library for datanucleus
+        </description>
+    </property>
+    <property>
+        <name>hive.server2.authentication</name>
+        <value>NONE</value>
+    </property>
+	<!-- To Close ACID -->
+    <property>
+        <name>hive.strict.managed.tables</name>
+        <value>false</value>
+    </property>
+    <property>
+        <name>hive.create.as.insert.only</name>
+        <value>false</value>
+    </property>
+    <property>
+        <name>metastore.create.as.acid</name>
+        <value>false</value>
+    </property>
 </configuration>
