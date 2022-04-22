@@ -87,6 +87,11 @@ if [ -n "${HADOOP_DATANODE_UI_PORT}" ]; then
   fi
 fi
 
+# HADOOP_HOME is your hadoop root directory after unpack the binary package.
+HADOOP_CLASSPATH_FUNC=`$HADOOP_HOME/bin/hadoop classpath`
+export HADOOP_CLASSPATH=$HADOOP_CLASSPATH:$HADOOP_CLASSPATH_FUNC
+
+
 # 注意Hadoop的 start-all.sh 在alpine会报错，不可用！
 if [ "${HADOOP_NODE}" == "namenode" ]; then
   echo "Starting Hadoop name node..."

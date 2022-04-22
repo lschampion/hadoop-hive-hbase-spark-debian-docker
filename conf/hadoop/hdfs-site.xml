@@ -24,4 +24,18 @@
         <name>dfs.permissions.enabled</name>
         <value>false</value>
     </property>
+	
+    <!-- for kudi -->
+    <property>
+      <name>dfs.support.append</name>
+      <value>true</value>
+    </property>
+    <property>
+      <name>dfs.client.block.write.replace-datanode-on-failure.policy</name>
+      <value>NEVER</value>
+    </property>
+    <property>
+      <name>dfs.client.block.write.replace-datanode-on-failure</name>
+      <value>true</value>
+    </property>
 </configuration>

@@ -1,0 +1,28 @@
+########### coordinator #############
+#是否复用为worker节点，默认为 false。true代表coordinator节点还有worker节点的职能
+coordinator=true
+node-scheduler.include-coordinator=true
+# 本节点 presto 服务端口号
+http-server.http.port=28888
+query.max-memory=50GB
+query.max-memory-per-node=500MB
+#query.max-total-memory-per-node=1GB
+discovery-server.enabled=true
+#coordinator节点的ip和http服务端口
+discovery.uri=http://master:28888
+
+
+
+########### worker #############
+#是否为coordinator节点
+#coordinator=false
+# 是否复用为 worker 节点， false 为否。默认为 false
+#node-scheduler.include-coordinator=true
+# 本节点服务端口号
+#http-server.http.port=28888
+#query.max-memory=50GB
+#query.max-memory-per-node=1GB
+#query.max-total-memory-per-node=2GB
+#Trino中coordinator所在节点主机名称(还是配置IP吧)，以及其端口号
+#用于集群节点的发现，注册，服务调用等...
+#discovery.uri=http://master:28888

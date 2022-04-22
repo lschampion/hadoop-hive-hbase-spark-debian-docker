@@ -45,6 +45,8 @@ ENV HIVE_LOG_DIR="${HIVE_HOME}/logs"
 ENV HIVE_PACKAGE="apache-hive-${HIVE_VERSION}-bin.tar.gz"
 ENV PATH="${PATH}:${HIVE_HOME}/bin"
 ENV HADOOP_CLASSPATH="${HADOOP_CLASSPATH}:${HIVE_HOME}/lib/*"
+# Hive Hudi support
+ENV HIVE_AUX_JARS_PATH=/usr/program/hive/lib/hudi-hadoop-mr-0.10.0.jar,/usr/program/hive/lib/hudi-hive-sync-bundle-0.10.0.jar
 
 # HBase
 ENV HBASE_VERSION=2.3.6
@@ -97,6 +99,9 @@ ENV TEZ_PACKAGE="apache-tez-${TEZ_VERSION}-bin.tar.gz"
 ENV TEZ_CONF_DIR=${HADOOP_CONF_DIR}
 ENV TEZ_JARS=${TEZ_HOME}/*:${TEZ_HOME}/lib/*
 ENV HADOOP_CLASSPATH=${TEZ_CONF_DIR}:${TEZ_JARS}:${HADOOP_CLASSPATH}
+
+# Hudi
+ENV HUDI_VERSION=0.10.0
 
 RUN apk add --no-cache \
     'curl=~7.66' \
