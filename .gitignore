@@ -1,3 +1,6 @@
-# IDE garbage
 .idea/
 tar-source-files/*
+# hudi是根据spark和flink等版本编译的。不忽略
+!tar-source-files/hudi-*.jar
+# flink-shaded-hadoop虽然版本与hadoop不一致但不影响使用
+!tar-source-files/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar
