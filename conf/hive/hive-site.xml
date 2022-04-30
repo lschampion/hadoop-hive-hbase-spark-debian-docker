@@ -116,4 +116,9 @@
         <name>metastore.create.as.acid</name>
         <value>false</value>
     </property>
+	<property>
+    <!-- trino support Metastore configuration for Avro https://trino.io/docs/current/connector/hive.html -->
+        <name>metastore.storage.schema.reader.impl</name>
+        <value>org.apache.hadoop.hive.metastore.SerDeStorageSchemaReader</value>
+    </property>
 </configuration>

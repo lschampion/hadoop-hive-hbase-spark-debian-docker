@@ -1,5 +1,7 @@
 .idea/
 tar-source-files/*
+# do not ignore source file list for refering later,不排除原始文件记录表，以后build时候文件列表可以参考
+!file_list.txt
 # hudi是根据spark和flink等版本编译的。不忽略
 !tar-source-files/hudi-*.jar
 # flink-shaded-hadoop虽然版本与hadoop不一致但不影响使用

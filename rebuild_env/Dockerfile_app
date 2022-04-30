@@ -201,7 +201,6 @@ COPY conf/hive/hive-env.sh "${HIVE_CONF_DIR}"/
 COPY conf/hive/hive-log4j2.properties "${HIVE_CONF_DIR}"/
 COPY jdbc_drivers/* "${HIVE_HOME}/lib/"
 
-# it is a pity than two scripts below would not work, then script for same goat have been added in entrypoint.sh file.
 RUN for jar in `ls $TEZ_HOME | grep jar`; do export HADOOP_CLASSPATH=$HADOOP_CLASSPATH:$TEZ_HOME/$jar; done 
 RUN for jar in `ls $TEZ_HOME/lib`; do export HADOOP_CLASSPATH=$HADOOP_CLASSPATH:$TEZ_HOME/lib/$jar; done
 

@@ -28,9 +28,21 @@ Hive JDBC port is exposed to host:
 
 ### Scripts
 
-`docker_build.sh ` helps build image
+`build_env_base_image.sh ` helps build env image, which contain environment variables and component version information.
 
-`rm_none_images.sh` helps removing `<none>` tag of images in developing. use `docker image ps ` to checkout which image is created
+`build_app_base_image.sh` help build app image, which would participate in docker-compose.
+
+use both above build scripts  like
+
+```shell
+sh build_env/app_base_image.sh your_version
+```
+
+`rm_none_images.sh` helps removing `<none>` tag of images in developing. use `docker image ps ` to checkout which image is created.
+
+`tar-source-files/file_list.txt` show which local package may use. refering it when build your image
+
+`get_hadoop_container_id.sh` help when you want to find the running hadoop container IDs.
 
 `/scripts/ssh_auto_configer` of directory contains SSH configing scripts:
 

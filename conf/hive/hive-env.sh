@@ -51,4 +51,4 @@
 # export HIVE_CONF_DIR=
 
 # Folder containing extra libraries required for hive compilation/execution can be controlled by:
-export HIVE_AUX_JARS_PATH=/usr/program/hive/lib/hudi-hadoop-mr-0.10.0.jar,/usr/program/hive/lib/hudi-hive-sync-bundle-0.10.0.jar
+export HIVE_AUX_JARS_PATH=/usr/program/hive/lib/hudi-hadoop-mr-bundle-0.10.0.jar,/usr/program/hive/lib/hudi-hive-sync-bundle-0.10.0.jar
