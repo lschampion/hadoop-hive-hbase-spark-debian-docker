@@ -1,6 +1,6 @@
 # The java implementation to use. By default, this environment
 # variable is REQUIRED on ALL platforms except OS X!
-export JAVA_HOME=/usr/lib/jvm/java-1.8-openjdk
+# export JAVA_HOME=
 # kudi need `$HADOOP_HOME/bin/hadoop classpath`
 export HADOOP_CLASSPATH=`$HADOOP_HOME/bin/hadoop classpath`
 

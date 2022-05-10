@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # reboot sshd service,must refresh ssh service
-/etc/init.d/sshd restart
+/etc/init.d/ssh restart && /etc/init.d/ssh status
 
 # https://blog.csdn.net/jmx_bigdata/article/details/98506875
 # Sqoop报错：ERROR Could not register mbeans java.security.AccessControlException: access denied
@@ -74,6 +74,7 @@ expect {
         }
 expect eof
 EOF
+echo "autogen ssh $hostname success!!!"
 }
 
 ssh_service(){
@@ -82,9 +83,10 @@ ssh_service(){
   # auto_ssh root 123456 master
   # ${HADOOP_SERVERS_HOSTNAME}和${ROOT_PWD} 从docker-compose.yml获取所有hadoop集群主机的hostname
   # 通过修改以下重试次数和休眠间隔时间可以避免不成功情况。
-  ssh_retry=30
-  ssh_sleep_secs=10
+  ssh_retry=300
+  ssh_sleep_secs=5
   for hostname in ${HADOOP_SERVERS_HOSTNAME} ; do
+    # $HOSTNAME is from global env
     while [ ${ssh_retry} -gt 0 ] ; do
       auto_ping $hostname
   	# 获取ping结果
@@ -303,7 +305,7 @@ if [ $zoo_alive -gt 0 ] ; then
     fi
     # HBase regionserver startup
     if [ "${role}" = "regionserver" ]; then
-        wait_until ${HBASE_MASTER_HOSTNAME} 16000 
+        wait_until ${HBASE_MASTER_HOSTNAME} 16000 300 5
         echo "`date` Starting regionserver on `hostname`" 
         hbase-daemon.sh start regionserver || echo "error: start regionserver fail on `hostname`"
     fi

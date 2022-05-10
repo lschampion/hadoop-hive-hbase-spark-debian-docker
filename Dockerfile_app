@@ -1,5 +1,5 @@
 # Alpine 3.11 contains Python 3.8, pyspark only supports Python up to 3.7
-FROM lisacumt/bigdata_base_env_img:1.1.6 as base_package
+FROM lisacumt/bigdata-base-env-debian-img:1.3.0 as base_package
 
 
 ################################-- Start Packaging --######################################

@@ -1,18 +1,71 @@
-# Alpine 3.11 contains Python 3.8, pyspark only supports Python up to 3.7
-
 ################################-- Start Packaging --######################################
-FROM alpine:3.10.4 as env_package
+FROM debian:stable as env_package
+VOLUME [ "/sys/fs/cgroup" ]
 
-# 清华源镜像apache 地址： https://mirrors.tuna.tsinghua.edu.cn/apache/
-# 修改alpine源，为国内清华镜像源
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
+# https://github.com/hadolint/hadolint/wiki/DL4006
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# RUN echo deb http://deb.debian.org/debian buster main > /etc/apt/sources.list \
+#  && echo deb http://security.debian.org/debian-security buster/updates main  >> /etc/apt/sources.list \
+#  && echo deb http://deb.debian.org/debian buster-updates main  >> /etc/apt/sources.list 
+
+RUN apt-get update --fix-missing
+RUN apt-get install -y curl wget \
+ && apt-get install -y zip \
+ && apt-get install -y vim \
+ && apt-get install -y net-tools iputils-ping netcat coreutils \
+ && apt-get install -y tcl tk expect 
+RUN apt-get install -y locales \
+ && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF8 
+
+# JAVA install
+RUN apt install -y apt-transport-https ca-certificates  dirmngr gnupg software-properties-common \
+ && wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | apt-key add - \
+ && add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/ \
+ && apt-get update \
+ && apt install -y adoptopenjdk-8-hotspot  \
+ && java -version \
+ && export JAVA_DIRECTORY=`ls -l /usr/lib/jvm | grep ^d | grep jdk | awk '{print $9}'` \
+ && ln -s /usr/lib/jvm/$JAVA_DIRECTORY /usr/lib/jvm/java_home \
+ && echo JAVA_HOME=/usr/lib/jvm/java_home >> /etc/profile \
+ && echo 'JRE_HOME=$JAVA_HOME/jre' >> /etc/profile \
+ && echo 'CLASS_PATH=.:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:$JRE_HOME/lib' >> /etc/profile \
+ && source /etc/profile 
+
+
+# ssh install 设置默认root密码
+ENV ROOT_PWD=123456
+RUN apt-get install -y openssh-server \
+ && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime  \
+ && echo "root:${ROOT_PWD}" | chpasswd \
+ && sed -i "s/^#PasswordAuthentication.*/PasswordAuthentication yes"/g /etc/ssh/sshd_config \
+ && sed -i "s/^#PermitRootLogin.*/PermitRootLogin yes"/g /etc/ssh/sshd_config \
+ && sed -i "s/^#Port.*/Port 22"/g /etc/ssh/sshd_config \
+ && service ssh start \
+ && service ssh status \
+ && update-rc.d ssh enable \
+ && mkdir -p /root/.ssh && chmod 700 /root/.ssh/ \
+ && ssh-keygen -t rsa -N '' -f /root/.ssh/id_rsa \
+ && echo "alias ll='ls -l --color=auto'" >> ~/.bashrc && source ~/.bashrc
+
+# python install
+# PySpark - comment out if you don't want it in order to save image space
+RUN apt install -y curl build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libsqlite3-dev libreadline-dev libffi-dev libbz2-dev \
+ && wget https://www.python.org/ftp/python/3.7.5/Python-3.7.5.tgz \
+ && tar -xf Python-3.7.5.tgz \
+ && cd Python-3.7.5 \
+ && ./configure && make && make install \
+ && ln -s /usr/local/bin/python3 /usr/bin/python \
+ && ln -s /usr/local/bin/pip3 /usr/bin/pip \
+ && which python3 \
+ && cd ../ && rm -rf Python-3.7.5 Python-3.7.5.tgz
 
 ENV USR_PROGRAM_DIR=/usr/program
 ENV USR_BIN_DIR="${USR_PROGRAM_DIR}/source_dir"
 RUN mkdir -p "${USR_BIN_DIR}"
 
 # Common settings
-ENV JAVA_HOME "/usr/lib/jvm/java-1.8-openjdk"
+ENV JAVA_HOME /usr/lib/jvm/java_home
 ENV PATH="${PATH}:${JAVA_HOME}/bin"
 # http://blog.stuart.axelbrooke.com/python-3-on-spark-return-of-the-pythonhashseed
 ENV PYTHONHASHSEED 0
@@ -117,69 +170,8 @@ ENV LIVY_LOG_DIR="${LIVY_HOME}/logs"
 ENV LIVY_PACKAGE="apache-livy-${LIVY_VERSION}-bin.zip"
 
 
-RUN apk add --no-cache \
-    'curl=~7.66' \
-    'unzip=~6.0' \
-    'openjdk8=~8' \
-    'bash=~5.0' \
-    'coreutils=~8.31' \
-    'procps=~3.3' \
-    'findutils=~4.6' \
-    'ncurses=~6.1' \
-    'g++=~8.3' \
-    'libc6-compat=~1.1' \
-	tcl tk expect \
-    && ln -s /lib64/ld-linux-x86-64.so.2 /lib/ld-linux-x86-64.so.2
-
-# https://github.com/hadolint/hadolint/wiki/DL4006
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-	
-
-# for openrc 避免openrc 报文件只读错误，创建匿名数据卷
-VOLUME [ "/sys/fs/cgroup" ]
-
-# 设置alpine默认root密码
-ENV ROOT_PWD=123456
-# add ssh https://blog.csdn.net/Gekkoou/article/details/90430603
-RUN apk update && \
-    apk add openssh-server openssh-client openrc tzdata && \
-    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
-    rc-update add sshd && \
-    mkdir -p /run/openrc && touch /run/openrc/softlevel && \
-    openrc && \
-    rc-status && \
-    sed -i "s/#Port 22/Port 22/g" /etc/ssh/sshd_config && \
-    sed -i "s/#PermitRootLogin.*/PermitRootLogin yes/g" /etc/ssh/sshd_config && \
-    mkdir -p /root/.ssh && chmod 700 /root/.ssh/ && \
-    ssh-keygen -t rsa -N '' -f /root/.ssh/id_rsa && \
-    service sshd restart && \
-    echo "root:${ROOT_PWD}" | chpasswd && \
-    apk del tzdata && \
-    rm -rf /var/cache/apk/* 
-	
-
-# PySpark - comment out if you don't want it in order to save image space
-RUN apk add  --no-cache \
-    'python3=~3.7' \
-    'python3-dev=~3.7' \
-    && ln -s /usr/bin/python3 /usr/bin/python \
-	&& rm -rf /var/cache/apk/* 
-
-# 原始的国内R语言源是：http://cran.us.r-project.org
-# 国内源：http://mirrors.tuna.tsinghua.edu.cn/CRAN
-# SparkR - comment out if you don't want it in order to save image space
-#RUN apk add --no-cache  \
-#    'R=~3.6' \
-#    'R-dev=~3.6' \
-#    'libc-dev=~0.7' \
-#    && R -e 'install.packages("knitr", repos = "http://mirrors.tuna.tsinghua.edu.cn/CRAN")' 
-#    # && R -e 'install.packages("rmarkdown", repos = "http://cran.us.r-project.org")' 
-
 # Multi tail for logging 多重日志合并服务
 COPY scripts/ /scripts
-RUN apk add  'linux-headers=~4.19' \
-   && gcc /scripts/watchdir.c -o /scripts/watchdir \
-   && chmod +x /scripts/*
-
+RUN gcc /scripts/watchdir.c -o /scripts/watchdir && chmod +x /scripts/*
 ################################-- end Packaging --######################################
 
